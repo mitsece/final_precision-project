@@ -1,11 +1,15 @@
-name: GDS Build and Test
+name: Tiny Tapeout GDS Build
+
+# This workflow uses Tiny Tapeout's official GDS generation flow
+# For more info: https://tinytapeout.com/guides/local-hardening/
 
 on:
+  workflow_dispatch:  # Manual trigger only
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'info.yaml'
 
 jobs:
   gds:
@@ -17,92 +21,14 @@ jobs:
         with:
           submodules: recursive
       
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Build GDS using Tiny Tapeout Action
+        uses: TinyTapeout/tt-gds-action@tt09
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            iverilog \
-            gtkwave \
-            build-essential \
-            libglu1-mesa-dev \
-            freeglut3-dev
-      
-      - name: Cache PDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.volare
-            /usr/local/share/pdk
-          key: ${{ runner.os }}-pdk-${{ hashFiles('**/info.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pdk-
-      
-      - name: Install OpenLane and PDK
-        run: |
-          # Install volare for PDK management
-          pip install volare
-          
-          # Enable sky130 PDK (adjust version as needed)
-          volare enable --pdk sky130 2024.11.19
-      
-      - name: Run RTL simulation
-        run: |
-          if [ -d "test" ]; then
-            cd test
-            make clean || true
-            
-            # Run with fixed seed for reproducibility
-            RANDOM_SEED=42 make test || {
-              echo "::error::RTL simulation failed"
-              exit 1
-            }
-          else
-            echo "::warning::No test directory found, skipping RTL tests"
-          fi
-      
-      - name: Run GL (Gate-Level) simulation
-        run: |
-          if [ -d "test" ]; then
-            cd test
-            
-            # Run GL test with fixed seed
-            RANDOM_SEED=42 make test_gl || {
-              echo "::error::Gate-level simulation failed"
-              echo "::notice::Check timing violations and setup/hold times"
-              exit 1
-            }
-          else
-            echo "::warning::No test directory found, skipping GL tests"
-          fi
-        continue-on-error: false
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            test/*.vcd
-            test/*.log
-            test/results.xml
-          if-no-files-found: warn
-      
-      - name: Harden design (GDS generation)
-        run: |
-          if [ -f "Makefile" ]; then
-            make gds || {
-              echo "::error::GDS generation failed"
-              exit 1
-            }
-          else
-            echo "::warning::No Makefile found for GDS generation"
-          fi
-        continue-on-error: false
+          # Tiny Tapeout will handle PDK installation and GDS generation
+          # No need to manually install volare or manage PDK versions
+          skip-test: false
       
       - name: Upload GDS artifacts
         if: success()
@@ -116,18 +42,9 @@ jobs:
             runs/wokwi/reports/**/*.rpt
           if-no-files-found: warn
       
-      - name: Generate summary
-        if: always()
-        run: |
-          echo "## GDS Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f "runs/wokwi/reports/metrics.csv" ]; then
-            echo "### Design Metrics" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            cat runs/wokwi/reports/metrics.csv >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Build completed at: $(date)" >> $GITHUB_STEP_SUMMARY
+      - name: Upload to GitHub Pages
+        if: success()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./runs/wokwi/results/final
