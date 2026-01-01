@@ -1,17 +1,47 @@
-name: docs
+name: Build Documentation
 
 on:
   push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  docs:
+  build-docs:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Install Typst
+        uses: typst-community/setup-typst@v3
         with:
-          submodules: recursive
-
-      - name: Build docs
-        uses: TinyTapeout/tt-gds-action/docs@tt06
+          typst-version: 'latest'
+      
+      - name: Verify Typst installation
+        run: typst --version
+      
+      - name: Build documentation
+        run: |
+          # Example: compile all .typ files in docs/ directory
+          if [ -d "docs" ]; then
+            for file in docs/*.typ; do
+              if [ -f "$file" ]; then
+                echo "Compiling $file..."
+                typst compile "$file"
+              fi
+            done
+          else
+            echo "No docs directory found. Skipping compilation."
+          fi
+      
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: |
+            docs/*.pdf
+            **/*.pdf
+          if-no-files-found: warn
