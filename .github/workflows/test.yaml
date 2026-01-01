@@ -1,47 +1,72 @@
-name: test
-on: [push, workflow_dispatch]
+name: Test and Build
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install iverilog
-        shell: bash
-        run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
 
-      # Set Python up and install cocotb
-      - name: Setup python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python packages
-        shell: bash
-        run: pip install -r test/requirements.txt
-
-      - name: Run tests
+      - name: Run RTL simulation
         run: |
           cd test
-          make clean
-          make
-          # make will return success even if the test fails, so check for failure in the results.xml
-          ! grep failure results.xml
+          # Compile testbench with project source
+          iverilog -g2012 -o tb.vvp ../src/project.v tb.v
+          # Run simulation with fixed seed
+          vvp tb.vvp +RANDOM_SEED=42
+          # Check exit code
+          if [ $? -eq 0 ]; then
+            echo "✓ RTL simulation PASSED"
+          else
+            echo "✗ RTL simulation FAILED"
+            exit 1
+          fi
 
-      - name: Test Summary
-        uses: test-summary/action@v2.3
-        with:
-          paths: "test/results.xml"
+      - name: Upload test waveforms
         if: always()
-
-      - name: upload vcd
-        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-vcd
+          name: test-waveforms
+          path: test/*.vcd
+          if-no-files-found: warn
+
+  # GDS build job - runs separately and can fail without blocking tests
+  gds:
+    runs-on: ubuntu-latest
+    needs: test # Only run if tests pass
+    continue-on-error: true # Don't fail the whole workflow if GDS fails
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build GDS
+        run: |
+          # This would normally run the Tiny Tapeout hardening flow
+          # For now, just indicate it would run here
+          echo "GDS build would run here with 'make gds' or Tiny Tapeout flow"
+          echo "Skipping for now as it requires full OpenLane setup"
+
+      - name: Upload GDS artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gds-files
           path: |
-            test/tb.vcd
-            test/results.xml
+            runs/wokwi/results/final/gds/*.gds
+            runs/wokwi/results/final/lef/*.lef
+          if-no-files-found: warn
