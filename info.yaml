@@ -1,93 +1,51 @@
-# TinyTapeout project information
-# Integrated Precision Farming ASIC
+--- 
+# Tiny Tapeout Project Configuration
+
 project:
-  title: "Precision Farming ASIC - ML + Sensor Monitoring"
-  author: "Athul & MITS ECE Team"
-  description: "Dual-mode ASIC: ML-based microgreen harvest detection (camera+BNN) and environmental sensor monitoring with fault detection"
-  discord: "your_discord_handle"
-  language: "Verilog"
-  clock_hz: 25000000  # 25 MHz for camera interface
-  tiles: "1x2"  # Increased to 1x2 for combined functionality
-  top_module: "tt_um_precision_farming"
-  source_files:
+  name: "tt_um_precision_farming"
+  description: "Precision Farming ASIC with dual-mode sensor monitoring and ML harvest detection"
+  picture: "docs/scheme.png"
+  author: "User"
+  license: "Apache-2.0"
+  family: "tt09" # Target TT09
+
+# Sources
+source:
+  files:
     - "project.v"
+  top_module: "tt_um_precision_farming"
 
-# Pin definitions
+# GDS Settings
+tiles: "1x1"
+docs: 
+  doc: "docs/info.md"
+
+# Pinout definition
 pinout:
-  # ===== Dedicated Inputs (ui_in[7:0]) =====
-  # Dual purpose: Camera data in ML mode / Sensor data in monitoring mode
-  ui[7]: "camera_data[7] / sensor_data[7]"
-  ui[6]: "camera_data[6] / sensor_data[6]"
-  ui[5]: "camera_data[5] / sensor_data[5]"
-  ui[4]: "camera_data[4] / sensor_data[4]"
-  ui[3]: "camera_data[3] / sensor_data[3]"
-  ui[2]: "camera_data[2] / sensor_data[2]"
-  ui[1]: "camera_data[1] / sensor_data[1]"
-  ui[0]: "camera_data[0] / sensor_data[0]"
-  
-  # ===== Dedicated Outputs (uo_out[7:0]) =====
-  uo[7]: "system_alert (buzzer/LED)"
-  uo[6]: "ready_indicator"
-  uo[5]: "mode_indicator (0=sensor, 1=camera)"
-  uo[4]: "harvest_ready / sensor_alert"
-  uo[3]: "status_bit[2] (hidden[2] / fault_level[2])"
-  uo[2]: "status_bit[1] (hidden[1] / fault_level[1])"
-  uo[1]: "status_bit[0] (hidden[0] / fault_level[0])"
-  uo[0]: "hidden[3] / fault_sensor[0]"
-  
-  # ===== Bidirectional Pins (uio[7:0]) =====
-  # Note: Direction changes based on mode
-  uio[7]: "mode_select (INPUT: 0=sensor mode, 1=ML/camera mode)"
-  uio[6]: "vsync (INPUT in ML mode)"
-  uio[5]: "href (INPUT in ML mode)"
-  uio[4]: "pclk (INPUT) / camera_clk_div (OUTPUT in ML mode)"
-  uio[3]: "echo_pin (INPUT in ML mode)"
-  uio[2]: "unused"
-  uio[1]: "sensor_select[1] (INPUT in sensor mode) / ultrasonic_trigger (OUTPUT in ML mode)"
-  uio[0]: "sensor_select[0] (INPUT in sensor mode)"
+  ui[0]: "Sensor Data / Cam D0"
+  ui[1]: "Sensor Data / Cam D1"
+  ui[2]: "Sensor Data / Cam D2"
+  ui[3]: "Sensor Data / Cam D3"
+  ui[4]: "Sensor Data / Cam D4"
+  ui[5]: "Sensor Data / Cam D5"
+  ui[6]: "Sensor Data / Cam D6"
+  ui[7]: "Sensor Data / Cam D7"
+  uo[0]: "Debug"
+  uo[1]: "Fault Lvl 0"
+  uo[2]: "Fault Lvl 1"
+  uo[3]: "Fault Lvl 2"
+  uo[4]: "Harvest Ready"
+  uo[5]: "Mode Indicator"
+  uo[6]: "System Ready"
+  uo[7]: "Alert"
+  uio[0]: "Sensor Sel 0"
+  uio[1]: "Sensor Sel 1"
+  uio[2]: "Reserved"
+  uio[3]: "Reserved"
+  uio[4]: "Reserved"
+  uio[5]: "HREF"
+  uio[6]: "VSYNC"
+  uio[7]: "Mode Select"
 
-# Usage documentation
-documentation:
-  operation_modes: |
-    The ASIC operates in two modes controlled by uio[7]:
-    
-    MODE 0 (uio[7]=0): SENSOR MONITORING
-    - Monitors 4 environmental sensors (soil moisture, humidity, light, temperature)
-    - Sensor selection via uio[1:0]: 00=sensor1, 01=sensor2, 10=sensor3, 11=sensor4
-    - Takes 4 samples per sensor and computes moving average
-    - Detects deviations from baseline:
-      * Level 1: 10-24 deviation
-      * Level 2: 25-49 deviation
-      * Level 3: 50-99 deviation
-      * Level 4: 100+ deviation
-    - Outputs: uo[7]=alert, uo[3:1]=fault_level, uo[0],uio[1]=sensor_id
-    
-    MODE 1 (uio[7]=1): ML-BASED HARVEST DETECTION
-    - Connects to OV7670 camera (ui[7:0]=data, uio[6]=vsync, uio[5]=href, uio[4]=pclk)
-    - Extracts features: greenness, color ratio, height, texture
-    - Uses ultrasonic sensor for distance (uio[3]=echo, uio[1]=trigger)
-    - Binary Neural Network inference (4 input → 4 hidden → 2 output)
-    - Outputs: uo[7]=harvest_ready alert, uo[4]=prediction, uo[3:0]=hidden_activations
-  
-  sensor_connections: |
-    Sensor Mode (uio[7]=0):
-    - Connect 4 sensors to ui[7:0] (8-bit ADC output)
-    - Ground-truth values: Set initially, system learns baseline
-    - Sample rate: ~4 samples/evaluation
-    
-    ML Mode (uio[7]=1):
-    - OV7670 camera: D[7:0]→ui[7:0], VSYNC→uio[6], HREF→uio[5], PCLK→uio[4]
-    - Camera clock output: uio[4] provides divided clock
-    - HC-SR04 ultrasonic: TRIG→uio[1], ECHO→uio[3]
-    - Alert outputs: uo[7] to buzzer/LED
-  
-  specifications: |
-    - Clock: 25 MHz
-    - Camera: OV7670 compatible (RGB565)
-    - BNN: 4-4-2 architecture, 86.7% test accuracy
-    - Sensor resolution: 8-bit (0-255)
-    - Distance range: 0-64 cm (ultrasonic)
-    - Processing: ~30ms per camera frame
-    - Power: Estimated <10mW @ 25MHz
 
 yaml_version: 6
