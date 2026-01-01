@@ -1,0 +1,17 @@
+{
+  "DESIGN_NAME": "tt_um_precision_farming",
+  "VERILOG_FILES": [
+    "dir::src/project.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 40.0,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 334 225",
+  "FP_CORE_UTIL": 40,
+  "PL_BASIC_PLACEMENT": 0,
+  "GRT_ALLOW_CONGESTION": true,
+  "PL_TARGET_DENSITY": 0.5,
+  "SYNTH_MAX_FANOUT": 6,
+  "RUN_CTS": 1,
+  "DESIGN_IS_CORE": 0
+}
