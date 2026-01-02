@@ -20,10 +20,10 @@ GATES ?= no
 
 # Verilog sources
 ifeq ($(GATES),yes)
-    VERILOG_SOURCES = $(GATE_LEVEL_NETLIST) $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v
+    VERILOG_SOURCES = tb.v $(GATE_LEVEL_NETLIST) $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v
     COMPILE_ARGS += -DGL_TEST -DFUNCTIONAL -DUNIT_DELAY=\#1
 else
-    VERILOG_SOURCES = $(PROJECT_SOURCES) tb.v
+    VERILOG_SOURCES = tb.v $(PROJECT_SOURCES)
 endif
 
 # Random seed
