@@ -1,5 +1,4 @@
 name: Build Documentation
-
 on:
   push:
     branches: [ main, master ]
@@ -14,6 +13,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Checkout TinyTapeout tools
+        uses: actions/checkout@v4
+        with:
+          repository: TinyTapeout/tt-support-tools
+          path: tt
+          ref: tt07
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       
       - name: Install Typst
         uses: typst-community/setup-typst@v3
@@ -23,25 +36,18 @@ jobs:
       - name: Verify Typst installation
         run: typst --version
       
-      - name: Build documentation
-        run: |
-          # Example: compile all .typ files in docs/ directory
-          if [ -d "docs" ]; then
-            for file in docs/*.typ; do
-              if [ -f "$file" ]; then
-                echo "Compiling $file..."
-                typst compile "$file"
-              fi
-            done
-          else
-            echo "No docs directory found. Skipping compilation."
-          fi
+      - name: Install Pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+      
+      - name: Install Python dependencies
+        run: pip install -r tt/requirements.txt
+      
+      - name: Build TinyTapeout datasheet
+        run: ./tt/tt_tool.py --create-pdf
       
       - name: Upload documentation artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: documentation
-          path: |
-            docs/*.pdf
-            **/*.pdf
-          if-no-files-found: warn
+          name: datasheet
+          path: datasheet.pdf
+          if-no-files-found: error
