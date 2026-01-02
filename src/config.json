@@ -1,0 +1,8 @@
+{
+  "DESIGN_NAME": "tt_um_precision_farming",
+  "VERILOG_FILES": [
+    "dir::project.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 40.0
+}
